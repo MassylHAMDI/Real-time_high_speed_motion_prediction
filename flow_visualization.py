@@ -1,8 +1,10 @@
 import numpy as np
 import cv2 as cv
 import scipy.io as sio
-def calculate_image(x,y,flow_data, indices, dimensions):
-    
+from utils import select_file
+
+def calculate_image(x, y, flow_data, indices, dimensions):
+
     """
         Calculate the visualization image from the flow data.
 
@@ -14,21 +16,23 @@ def calculate_image(x,y,flow_data, indices, dimensions):
         Returns:
         - np.ndarray: The resulting image in BGR format ready for display.
     """
-    image = np.zeros((dimensions[1], dimensions[0], 3), dtype=np.uint8)
-    flow = flow_data[indices, 1]  # flow_data[:, 1] contient les valeurs de flux
-    flow = np.uint8(flow * 255 / (2 * np.pi))
-
+    image = np.zeros((dimensions[0], dimensions[1], 3), dtype=np.uint8)
+    flow = flow_data[indices, 1]  # Assuming second column contains flow values
+    # Normalize flow for better visualization
+    normalized_flow = cv.normalize(flow, None, 0, 255, cv.NORM_MINMAX)
     x_coords = x[indices].astype(int)
     y_coords = y[indices].astype(int)
 
     for i, (x_coord, y_coord) in enumerate(zip(x_coords, y_coords)):
         if 0 <= x_coord < dimensions[0] and 0 <= y_coord < dimensions[1]:
-            if flow[i] > 0:  # Si la valeur de flux est non nulle
-                image[y_coord, x_coord] = [flow[i], 255, 255]  
+            # Apply a color map for visualization
+            color = cv.applyColorMap(np.uint8([normalized_flow[i]]), cv.COLORMAP_JET)[0, 0]
+            image[x_coord, y_coord ] = color  # Note the order of y and x here
 
-    return cv.cvtColor(image, cv.COLOR_HSV2BGR)
+    return image
 
 def visualize_flow(x, y, ts, EDL, ARMS, time_delay, step_size):
+
     """
         Visualize the flow data using OpenCV.
 
@@ -45,30 +49,36 @@ def visualize_flow(x, y, ts, EDL, ARMS, time_delay, step_size):
     """
     x = x.astype(int)
     y = y.astype(int)
-
-    height, width = max(y) + 1, max(x) + 1
+    height, width = max(y) + 100, max(x) + 100
 
     for ind_min in range(0, len(x), step_size):
         ind_max = min(ind_min + step_size, len(x))
         indices = np.arange(ind_min, ind_max)
-        # Mise à jour des images EDL et ARMS
-        EDL_image = calculate_image(x,y,EDL, indices, (width, height))
-        ARMS_image = calculate_image(x,y,ARMS, indices, (width, height))
-        cv.imshow('EDL Flow', EDL_image)
-        cv.imshow('ARMS Flow', ARMS_image)
+        # Update the images for EDL and ARMS
+        EDL_image = calculate_image(x, y, EDL, indices, ( width, height ))
+        ARMS_image = calculate_image(x, y, ARMS, indices, ( width, height ))
 
+        cv.imshow('Rotated EDL Flow', EDL_image)
+        cv.imshow('Rotated ARMS Flow', ARMS_image)
         if cv.waitKey(time_delay) & 0xFF == ord('q'):
             break
 
     cv.destroyAllWindows()
 
 if __name__ == "__main__":
-    name_data_file = 'datamat.mat'
-    data = sio.loadmat(name_data_file)
-    # Access to the data in the .mat file
-    ts = data['ts'].reshape(-1)
-    x  = data['x'] .reshape(-1)
-    y  = data['y'] .reshape(-1)
-    flow_local = np.load('flow_local_out.npy')
-    corrected_flow = np.load('corrected_flow_out.npy')
-    visualize_flow(x, y, ts, flow_local, corrected_flow, time_delay=1000, step_size=1000)
+    try:
+        name_data_file = select_file()
+        data = sio.loadmat(name_data_file)
+
+        # Parameters for visualization
+        min_range, max_range = (0, 200000)
+        # Access to the data in the .mat file
+        ts = data['ts'].reshape(-1)[min_range:max_range]
+        x  = data['x'] .reshape(-1)[min_range:max_range]
+        y  = data['y'] .reshape(-1)[min_range:max_range]
+        flow_local = np.load('flow_local_out.npy')
+        corrected_flow = np.load('corrected_flow_out.npy')
+
+        visualize_flow(x, y, ts, flow_local, corrected_flow, time_delay=1, step_size=1000)
+    except Exception as e:
+        print(f"An error occurred: {e}")

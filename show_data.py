@@ -1,18 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy.io as sio
+from utils import select_file, load_data
 
-def load_data(file_path):
-    """Load event data from a .mat file."""
-    data = sio.loadmat(file_path)
-    x  = data["x"].reshape(-1,)       
-    y  = data["y"].reshape(-1,)       
-    ts = data["ts"].reshape(-1,) 
-    p  = data["p"].reshape(-1,)       
-    events = np.vstack((x, y, ts* 10**(-6))).transpose() 
-    return events, p
-
-def plot_events(events, polarity=None, min_range=0, max_range=10000, show_polarity=False):
+def plot_events(events, polarity=None, min_range=0, max_range=100000, show_polarity=False):
     """Plot the events in a 3D scatter plot."""
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection='3d')
@@ -35,13 +25,17 @@ def plot_events(events, polarity=None, min_range=0, max_range=10000, show_polari
 
     plt.show()
 
-# Load event data
-file_path = 'data/datamat.mat'
-events, p = load_data(file_path)
+if __name__ == "__main__":
+    try:
+        # Load event data
+        file_path = select_file()
+        events, p = load_data(file_path)
 
-# Parameters for visualization
-min_range, max_range = (0, 20000)
-show_polarity = True
+        # Parameters for visualization
+        min_range, max_range = (0, 200000)
+        show_polarity = True
 
-# Plotting the events
-plot_events(events, polarity=p, max_range=max_range, show_polarity=show_polarity)
+        # Plotting the events
+        plot_events(events, polarity=p, max_range=max_range, show_polarity=show_polarity)
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")

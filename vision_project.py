@@ -1,6 +1,7 @@
 import numpy as np
 from tqdm import tqdm
 import scipy.io as sio
+from utils import select_file
 
 def find_range(array, value, window):
     """
@@ -58,7 +59,7 @@ def find_3d_neighbors(coord_x, coord_y, time_stamps, target_idx, spatial_window,
     return spatial_neighbors
 
 
-def local_plane_fitting(x, y, ts, event_idx, neighborhood_size=5, time_threshold=1000):
+def local_plane_fitting(x, y, ts, event_idx, neighborhood_size=3, time_threshold=500):
     """
         Implementing local plane fitting with iterative refinement for event-based data, assuming a spatiotemporal neighborhood.
         This function estimates the plane parameters fitting locally around a specified event and refines the fit iteratively.
@@ -104,7 +105,7 @@ def local_plane_fitting(x, y, ts, event_idx, neighborhood_size=5, time_threshold
 
 
 
-def calculate_local_flow(x: np.ndarray, y: np.ndarray, t: np.ndarray, neighborhood_size: int = 5):
+def calculate_local_flow(x: np.ndarray, y: np.ndarray, t: np.ndarray, neighborhood_size: int = 3):
     """
     Calculate local flow using local plane fitting for each event.
 
@@ -140,7 +141,7 @@ def calculate_local_flow(x: np.ndarray, y: np.ndarray, t: np.ndarray, neighborho
     return local_flow
 
 
-def multi_spatial_scale_maxpooling(x: np.ndarray, y: np.ndarray, t: np.ndarray, local_flow: np.ndarray, time_threshold: int = 1000):
+def multi_spatial_scale_maxpooling(x: np.ndarray, y: np.ndarray, t: np.ndarray, local_flow: np.ndarray, time_threshold: int = 500):
     """
     Perform multi-spatial scale max-pooling on the local flow vectors.
 
@@ -182,15 +183,24 @@ def multi_spatial_scale_maxpooling(x: np.ndarray, y: np.ndarray, t: np.ndarray, 
 
 
 if __name__ == "__main__":
-    # Retrieving the current path
-    name_data_file = 'datamat.mat'
-    data = sio.loadmat(name_data_file)
-    # Access to the data in the .mat file
-    ts = data['ts'].reshape(-1)
-    x  = data['x'] .reshape(-1)
-    y  = data['y'] .reshape(-1)
-    flow_local = calculate_local_flow(x, y, ts)
-    corrected_flow = multi_spatial_scale_maxpooling(x, y, ts,flow_local)
-    # Save data into data folder
-    np.save('flow_local_out.npy'  , flow_local   )
-    np.save('corrected_flow_out.npy', corrected_flow)
+    try:
+        # Retrieving the current path
+        # name_data_file = 'datda/datamat.mat'
+        name_data_file = select_file()
+        data = sio.loadmat(name_data_file)
+
+        # Parameters for visualization
+        min_range, max_range = (0, 200000)
+        # Access to the data in the .mat file
+        ts = data['ts'].reshape(-1)[min_range:max_range]
+        x  = data['x'] .reshape(-1)[min_range:max_range]
+        y  = data['y'] .reshape(-1)[min_range:max_range]
+        flow_local = calculate_local_flow(x, y, ts)
+        corrected_flow = multi_spatial_scale_maxpooling(x, y, ts,flow_local)
+        # Save data into data folder
+        np.save('flow_local_out.npy'  , flow_local   )
+        np.save('corrected_flow_out.npy', corrected_flow)
+        print('done.')
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
