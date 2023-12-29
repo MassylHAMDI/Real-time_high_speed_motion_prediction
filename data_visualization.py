@@ -32,7 +32,7 @@ if __name__ == "__main__":
         events, p = load_data(file_path)
 
         # Parameters for visualization
-        min_range, max_range = (0, 200000)
+        min_range, max_range = (0, 100000)
         show_polarity = True
 
         # Plotting the events

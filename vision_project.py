@@ -59,7 +59,7 @@ def find_3d_neighbors(coord_x, coord_y, time_stamps, target_idx, spatial_window,
     return spatial_neighbors
 
 
-def local_plane_fitting(x, y, ts, event_idx, neighborhood_size=3, time_threshold=500):
+def local_plane_fitting(x, y, ts, event_idx, neighborhood_size=3, time_threshold=1000):
     """
         Implementing local plane fitting with iterative refinement for event-based data, assuming a spatiotemporal neighborhood.
         This function estimates the plane parameters fitting locally around a specified event and refines the fit iteratively.
@@ -135,13 +135,13 @@ def calculate_local_flow(x: np.ndarray, y: np.ndarray, t: np.ndarray, neighborho
 
         inlier_count = np.sum(inliers)
         if inlier_count >= (0.5 * neighborhood_size**2):
-            angle = np.arctan2(b, a)
+            angle = np.arctan2(a, b)
             local_flow[idx] = np.array([u_chap, angle])
     
     return local_flow
 
 
-def multi_spatial_scale_maxpooling(x: np.ndarray, y: np.ndarray, t: np.ndarray, local_flow: np.ndarray, time_threshold: int = 500):
+def multi_spatial_scale_maxpooling(x: np.ndarray, y: np.ndarray, t: np.ndarray, local_flow: np.ndarray, time_threshold: int = 1000):
     """
     Perform multi-spatial scale max-pooling on the local flow vectors.
 
@@ -190,7 +190,7 @@ if __name__ == "__main__":
         data = sio.loadmat(name_data_file)
 
         # Parameters for visualization
-        min_range, max_range = (0, 200000)
+        min_range, max_range = (0, 20000)
         # Access to the data in the .mat file
         ts = data['ts'].reshape(-1)[min_range:max_range]
         x  = data['x'] .reshape(-1)[min_range:max_range]

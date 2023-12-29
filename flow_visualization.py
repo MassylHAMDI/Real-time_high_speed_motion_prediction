@@ -71,7 +71,7 @@ if __name__ == "__main__":
         data = sio.loadmat(name_data_file)
 
         # Parameters for visualization
-        min_range, max_range = (0, 200000)
+        min_range, max_range = (0, 20000)
         # Access to the data in the .mat file
         ts = data['ts'].reshape(-1)[min_range:max_range]
         x  = data['x'] .reshape(-1)[min_range:max_range]
@@ -79,6 +79,6 @@ if __name__ == "__main__":
         flow_local = np.load('flow_local_out.npy')
         corrected_flow = np.load('corrected_flow_out.npy')
 
-        visualize_flow(x, y, ts, flow_local, corrected_flow, time_delay=1, step_size=1000)
+        visualize_flow(x, y, ts, flow_local, corrected_flow, time_delay=0, step_size=1000)
     except Exception as e:
         print(f"An error occurred: {e}")
