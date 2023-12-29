@@ -75,31 +75,33 @@ def local_plane_fitting(x, y, ts, event_idx, neighborhood_size=3, time_threshold
             final_plane_params: Parameters (a, b, c) of the refined fitted plane.
             neighborhood_idxs: Indices of events in the final neighborhood after refinement.
     """
-
+    eps = 10e6  
+    thresh1  = 1e-5 
+    thresh2 = 0.05  
     neighborhood_idxs = find_3d_neighbors(x, y, ts, event_idx, spatial_window=neighborhood_size, time_window= time_threshold)
-    if len(neighborhood_idxs) >= 4:
-        A = np.c_[x[neighborhood_idxs], y[neighborhood_idxs], np.ones(neighborhood_idxs.shape)]
+    if len(neighborhood_idxs) > 3:
+        x_subset = x[neighborhood_idxs]
+        y_subset = y[neighborhood_idxs]
+        ones_array = np.ones(neighborhood_idxs.shape)
+        A = np.column_stack((x_subset, y_subset, ones_array))
         B = ts[neighborhood_idxs]
 
         plane_params, _, _, _ = np.linalg.lstsq(A, B, rcond=None)
     else:
         return None, neighborhood_idxs  
 
-    eps = 10e6  
-    th1, th2 = 1e-5, 0.05  
-
-    while eps > th1:
-        distances = np.abs(np.dot(A, plane_params) - B)
-        inliers = distances <= th2
-        if np.sum(inliers) < 4:
+    while eps > thresh1:
+        dist = np.abs(np.dot(A, plane_params) - B)
+        inl = dist <= thresh2
+        if np.sum(inl) < 4:
             break
 
-        A = A[inliers]
-        B = B[inliers]
+        A = A[inl]
+        B = B[inl]
         new_plane_params, _, _, _ = np.linalg.lstsq(A, B, rcond=None)
         eps = np.linalg.norm(new_plane_params - plane_params)
         plane_params = new_plane_params  
-        neighborhood_idxs = neighborhood_idxs[inliers]
+        neighborhood_idxs = neighborhood_idxs[inl]
     return plane_params, neighborhood_idxs
 
 
@@ -131,10 +133,10 @@ def calculate_local_flow(x: np.ndarray, y: np.ndarray, t: np.ndarray, neighborho
         # Calculating t_chap, differences, inliers in a vectorized manner
         t_chap = a * (xi - x[neighbors]) + b * (yi - y[neighbors])
         differences = np.abs(ts_seconds[neighbors] - ts_seconds[idx] - t_chap)
-        inliers = differences < z_chap / 2
+        inl = differences < z_chap / 2
 
-        inlier_count = np.sum(inliers)
-        if inlier_count >= (0.5 * neighborhood_size**2):
+        inl_count = np.sum(inl)
+        if inl_count >= (0.5 * neighborhood_size**2):
             angle = np.arctan2(a, b)
             local_flow[idx] = np.array([u_chap, angle])
     
@@ -153,40 +155,32 @@ def multi_spatial_scale_maxpooling(x: np.ndarray, y: np.ndarray, t: np.ndarray, 
     Returns:
     corrected_flow: Array of flow vectors for each event after max-pooling correction.
     """
-    corrected_flow = np.zeros_like(local_flow)
+    flow = np.zeros_like(local_flow)
 
-    # Iterate through each event using tqdm for progress indication
     for idx, (xi, yi, ti) in tqdm(enumerate(zip(x, y, t)), total=len(x)):
-        # Find events within the specified time window
         temporal_mask = (t >= ti - time_threshold) & (t <= ti + time_threshold)
         spatial_indices = np.nonzero(temporal_mask)[0]
 
-        # Variables to store the best U and angle values
-        best_U = 0
-        best_angle = 0
-        max_mean_U = -np.inf  # Initialize to a very small number
+        Un = 0
+        angle_n = 0
+        max_mean_U = -np.inf 
 
-        # Iterate over various spatial scales
         for sigma in range(10, 100, 10):
-            # Find spatially relevant events within the sigma range
+           
             spatial_mask = (np.abs(x[spatial_indices] - xi) <= sigma) & (np.abs(y[spatial_indices] - yi) <= sigma)
-            relevant_indices = spatial_indices[spatial_mask]
+            indices_retained = spatial_indices[spatial_mask]
+            if indices_retained.size > 0:
+                U_mean = np.mean(local_flow[indices_retained, 0])
+                mean_angle = np.mean(local_flow[indices_retained, 1])
 
-            # Calculate mean U and angle values if there are any relevant events
-            if relevant_indices.size > 0:
-                U_mean = np.mean(local_flow[relevant_indices, 0])
-                angle_mean = np.mean(local_flow[relevant_indices, 1])
-
-                # Update the best U, angle, and mean U if this scale provides a higher mean U
                 if U_mean > max_mean_U:
                     max_mean_U = U_mean
-                    best_U = U_mean
-                    best_angle = angle_mean
+                    Un = U_mean
+                    angle_n = mean_angle
 
-        # Assign the best U and angle values found to the corrected flow
-        corrected_flow[idx] = np.array([best_U, best_angle])
+        flow[idx] = np.array([Un, angle_n])
 
-    return corrected_flow
+    return flow
 
 
 
