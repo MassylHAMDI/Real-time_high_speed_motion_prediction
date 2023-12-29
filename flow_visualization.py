@@ -27,7 +27,7 @@ def calculate_image(x, y, flow_data, indices, dimensions):
         if 0 <= x_coord < dimensions[0] and 0 <= y_coord < dimensions[1]:
             # Apply a color map for visualization
             color = cv.applyColorMap(np.uint8([normalized_flow[i]]), cv.COLORMAP_JET)[0, 0]
-            image[x_coord, y_coord ] = color  # Note the order of y and x here
+            image[x_coord, y_coord ] = color 
 
     return image
 
