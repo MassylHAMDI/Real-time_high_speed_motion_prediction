@@ -4,7 +4,7 @@ from utils import select_file, load_data
 
 def plot_events(events, polarity=None, min_range=0, max_range=100000, show_polarity=False):
     """Plot the events in a 3D scatter plot."""
-    fig = plt.figure(figsize=(8, 8))
+    fig = plt.figure(figsize=(9, 9))
     ax = fig.add_subplot(111, projection='3d')
 
     # Select the events for plotting
@@ -14,9 +14,9 @@ def plot_events(events, polarity=None, min_range=0, max_range=100000, show_polar
     if show_polarity and polarity is not None:
         pol_ = polarity[min_range:max_range]
         pol_color = np.where(pol_ == 1, "blue", "red")
-        ax.scatter(*selected_events, color=pol_color, s=8)
+        ax.scatter(*selected_events, color=pol_color, s=6)
     else:
-        ax.scatter(*selected_events, s=8)
+        ax.scatter(*selected_events, s=6)
 
     # Set axis labels
     ax.set_xlabel('x (px)')
@@ -32,7 +32,7 @@ if __name__ == "__main__":
         events, p = load_data(file_path)
 
         # Parameters for visualization
-        min_range, max_range = (0, 100000)
+        min_range, max_range = (0, 10000)
         show_polarity = True
 
         # Plotting the events

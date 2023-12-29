@@ -59,7 +59,7 @@ def find_3d_neighbors(coord_x, coord_y, time_stamps, target_idx, spatial_window,
     return spatial_neighbors
 
 
-def local_plane_fitting(x, y, ts, event_idx, neighborhood_size=3, time_threshold=1000):
+def local_plane_fitting(x, y, ts, event_idx, neighborhood_size=3, time_threshold=500):
     """
         Implementing local plane fitting with iterative refinement for event-based data, assuming a spatiotemporal neighborhood.
         This function estimates the plane parameters fitting locally around a specified event and refines the fit iteratively.
@@ -141,7 +141,7 @@ def calculate_local_flow(x: np.ndarray, y: np.ndarray, t: np.ndarray, neighborho
     return local_flow
 
 
-def multi_spatial_scale_maxpooling(x: np.ndarray, y: np.ndarray, t: np.ndarray, local_flow: np.ndarray, time_threshold: int = 1000):
+def multi_spatial_scale_maxpooling(x: np.ndarray, y: np.ndarray, t: np.ndarray, local_flow: np.ndarray, time_threshold: int = 500):
     """
     Perform multi-spatial scale max-pooling on the local flow vectors.
 
@@ -154,30 +154,38 @@ def multi_spatial_scale_maxpooling(x: np.ndarray, y: np.ndarray, t: np.ndarray, 
     corrected_flow: Array of flow vectors for each event after max-pooling correction.
     """
     corrected_flow = np.zeros_like(local_flow)
+
+    # Iterate through each event using tqdm for progress indication
     for idx, (xi, yi, ti) in tqdm(enumerate(zip(x, y, t)), total=len(x)):
-        relevant_events = (t >= ti - time_threshold) & (t <= ti + time_threshold)
-        event_window = np.where(relevant_events)[0]
+        # Find events within the specified time window
+        temporal_mask = (t >= ti - time_threshold) & (t <= ti + time_threshold)
+        spatial_indices = np.nonzero(temporal_mask)[0]
 
-        U_mean_values = []
-        angle_mean_values = []
-        sigma_values = range(10, 100, 10)  # Define spatial scales
-        for sigma in sigma_values:
-            spatial_window = event_window[(np.abs(x[event_window] - xi) <= sigma) & (np.abs(y[event_window] - yi) <= sigma)]
-            if spatial_window.size > 0:
-                U_mean = np.mean(local_flow[spatial_window, 0])
-                angle_mean = np.mean(local_flow[spatial_window, 1])
-            else:
-                U_mean = 0
-                angle_mean = 0
+        # Variables to store the best U and angle values
+        best_U = 0
+        best_angle = 0
+        max_mean_U = -np.inf  # Initialize to a very small number
 
-            U_mean_values.append(U_mean)
-            angle_mean_values.append(angle_mean)
+        # Iterate over various spatial scales
+        for sigma in range(10, 100, 10):
+            # Find spatially relevant events within the sigma range
+            spatial_mask = (np.abs(x[spatial_indices] - xi) <= sigma) & (np.abs(y[spatial_indices] - yi) <= sigma)
+            relevant_indices = spatial_indices[spatial_mask]
 
-        best_sigma_index = np.argmax(U_mean_values)
-        best_U = U_mean_values[best_sigma_index]
-        best_angle = angle_mean_values[best_sigma_index]
+            # Calculate mean U and angle values if there are any relevant events
+            if relevant_indices.size > 0:
+                U_mean = np.mean(local_flow[relevant_indices, 0])
+                angle_mean = np.mean(local_flow[relevant_indices, 1])
+
+                # Update the best U, angle, and mean U if this scale provides a higher mean U
+                if U_mean > max_mean_U:
+                    max_mean_U = U_mean
+                    best_U = U_mean
+                    best_angle = angle_mean
+
+        # Assign the best U and angle values found to the corrected flow
         corrected_flow[idx] = np.array([best_U, best_angle])
-    
+
     return corrected_flow
 
 

@@ -79,6 +79,6 @@ if __name__ == "__main__":
         flow_local = np.load('flow_local_out.npy')
         corrected_flow = np.load('corrected_flow_out.npy')
 
-        visualize_flow(x, y, ts, flow_local, corrected_flow, time_delay=0, step_size=1000)
+        visualize_flow(x, y, ts, flow_local, corrected_flow, time_delay=1, step_size=1000)
     except Exception as e:
         print(f"An error occurred: {e}")
