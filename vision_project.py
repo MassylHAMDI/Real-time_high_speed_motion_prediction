@@ -2,59 +2,44 @@ import numpy as np
 from tqdm import tqdm
 import scipy.io as sio
 from utils import select_file
+import bisect
+import os
+
+
 
 def find_range(array, value, window):
     """
-        Finds the range of indices in 'array' such that the elements are within a specified 'window' of a given 'value'.
-        It uses binary search to identify the initial index close to the 'value' and then linearly searches outwards to find the inclusive range.
+    Finds the range of indices in 'array' such that the elements are within a specified 'window' of a given 'value'.
+    
+    Parameters:
+    array (array-like): A sorted array of numerical values.
+    value (numeric): The center value to find neighbors around.
+    window (numeric): The window size around the 'value' to consider for finding neighbors.
 
-        Parameters:
-        array (array-like): A sorted array of numerical values.
-        value (numeric): The center value to find neighbors around.
-        window (numeric): The window size around the 'value' to consider for finding neighbors.
-
-        Returns:
-        numpy.ndarray: An array of indices indicating the positions in 'array' that are within the 'value' +/- 'window'.
-        If no such indices are found, returns an empty array.
+    Returns:
+    numpy.ndarray: An array of indices indicating the positions in 'array'.
     """
-    low, high = 0, len(array)
-    while low < high:
-        mid = (low + high) // 2
-        if array[mid] < value - window:
-            low = mid + 1
-        elif array[mid] > value + window:
-            high = mid
-        else:
-            # Now iterate outwards from the mid point
-            l, r = mid, mid
-            while l > 0 and array[l] >= value - window:
-                l -= 1
-            while r < len(array) and array[r] <= value + window:
-                r += 1
-            return np.arange(l + 1, r)  # Return the range of indices
-    return np.array([])  # Return an empty array if nothing is found
+    left_idx = bisect.bisect_left(array, value - window)
+    right_idx = bisect.bisect_right(array, value + window)
+    return np.arange(left_idx, right_idx)
 
 def find_3d_neighbors(coord_x, coord_y, time_stamps, target_idx, spatial_window, time_window):
     """
-        Identifies neighboring points within a specified spatial and temporal window for a given target point in a 3D space (2D spatial + time).
-
-        Parameters:
-        coord_x (array-like): The x coordinates of points in the space.
-        coord_y (array-like): The y coordinates of points in the space.
-        time_stamps (array-like): The time stamps for each point, representing the temporal dimension.
-        target_idx (int): The index of the target point in the arrays.
-        spatial_window (float): The radius of the spatial window to consider around the target point.
-        time_window (float): The radius of the temporal window to consider around the target time stamp.
-
-        Returns:
-        array-like: Indices of points that are neighbors to the target point within the specified spatial and temporal window.
+    Optimized version of find_3d_neighbors using efficient numpy operations
+    and minimizing redundant calculations.
     """
+    # Get the temporal neighbors first using the optimized find_range function
+    temporal_window_indices = find_range(time_stamps, time_stamps[target_idx], time_window)
 
-    temporal_window = find_range(time_stamps, time_stamps[target_idx], time_window)
-    spatial_neighbors = temporal_window[np.where((coord_x[target_idx] - spatial_window <= coord_x[temporal_window]) & 
-                                                 (coord_x[temporal_window] <= coord_x[target_idx] + spatial_window))[0]]
-    spatial_neighbors = spatial_neighbors[np.where((coord_y[target_idx] - spatial_window <= coord_y[spatial_neighbors]) & 
-                                                   (coord_y[spatial_neighbors] <= coord_y[target_idx] + spatial_window))[0]]
+    # Calculate differences once and reuse
+    dx = coord_x[temporal_window_indices] - coord_x[target_idx]
+    dy = coord_y[temporal_window_indices] - coord_y[target_idx]
+
+    # Use numpy's logical and to find indices that meet both spatial conditions
+    spatial_condition = (np.abs(dx) <= spatial_window) & (np.abs(dy) <= spatial_window)
+
+    # Filter the temporal window with the spatial condition
+    spatial_neighbors = temporal_window_indices[spatial_condition]
 
     return spatial_neighbors
 
@@ -86,6 +71,7 @@ def local_plane_fitting(x, y, ts, event_idx, neighborhood_size=3, time_threshold
         A = np.column_stack((x_subset, y_subset, ones_array))
         B = ts[neighborhood_idxs]
 
+
         plane_params, _, _, _ = np.linalg.lstsq(A, B, rcond=None)
     else:
         return None, neighborhood_idxs  
@@ -98,6 +84,7 @@ def local_plane_fitting(x, y, ts, event_idx, neighborhood_size=3, time_threshold
 
         A = A[inl]
         B = B[inl]
+
         new_plane_params, _, _, _ = np.linalg.lstsq(A, B, rcond=None)
         eps = np.linalg.norm(new_plane_params - plane_params)
         plane_params = new_plane_params  
@@ -192,16 +179,20 @@ if __name__ == "__main__":
         data = sio.loadmat(name_data_file)
 
         # Parameters for visualization
-        min_range, max_range = (0, 20000)
+        min_range, max_range = (0, 100000)
         # Access to the data in the .mat file
         ts = data['ts'].reshape(-1)[min_range:max_range]
         x  = data['x'] .reshape(-1)[min_range:max_range]
         y  = data['y'] .reshape(-1)[min_range:max_range]
         flow_local = calculate_local_flow(x, y, ts)
         corrected_flow = multi_spatial_scale_maxpooling(x, y, ts,flow_local)
+
+        # Define the folder name to save the result
+        folder_name = "result"
+        os.makedirs(folder_name, exist_ok=True)
         # Save data into data folder
-        np.save('flow_local_out.npy'  , flow_local   )
-        np.save('corrected_flow_out.npy', corrected_flow)
+        np.save('result/flow_local_out.npy'  , flow_local   )
+        np.save('result/corrected_flow_out.npy', corrected_flow)
         print('done.')
 
     except Exception as e:

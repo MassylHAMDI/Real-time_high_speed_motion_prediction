@@ -3,6 +3,7 @@ import cv2 as cv
 import scipy.io as sio
 from utils import select_file
 
+
 def calculate_image(x, y, flow_data, indices, dimensions):
 
     """
@@ -18,6 +19,7 @@ def calculate_image(x, y, flow_data, indices, dimensions):
     """
     image = np.zeros((dimensions[0], dimensions[1], 3), dtype=np.uint8)
     flow = flow_data[indices, 1]  # Assuming second column contains flow values
+
     # Normalize flow for better visualization
     normalized_flow = cv.normalize(flow, None, 0, 255, cv.NORM_MINMAX)
     x_coords = x[indices].astype(int)
@@ -71,13 +73,13 @@ if __name__ == "__main__":
         data = sio.loadmat(name_data_file)
 
         # Parameters for visualization
-        min_range, max_range = (0, 20000)
+        min_range, max_range = (0, 100000)
         # Access to the data in the .mat file
         ts = data['ts'].reshape(-1)[min_range:max_range]
         x  = data['x'] .reshape(-1)[min_range:max_range]
         y  = data['y'] .reshape(-1)[min_range:max_range]
-        flow_local = np.load('flow_local_out.npy')
-        corrected_flow = np.load('corrected_flow_out.npy')
+        flow_local = np.load('result/flow_local_out.npy')
+        corrected_flow = np.load('result/corrected_flow_out.npy')
 
         visualize_flow(x, y, ts, flow_local, corrected_flow, time_delay=1, step_size=1000)
     except Exception as e:
