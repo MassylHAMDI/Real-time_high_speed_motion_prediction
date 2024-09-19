@@ -6,7 +6,7 @@ Ce projet implémente des algorithmes de visualisation de flux et de données ba
 
 Voici une démonstration vidéo du projet en action :
 
-![Démonstration du projet](https://github.com/user-attachments/assets/a7575b29-d988-48b0-bec7-2bd6e7004696)
+https://github.com/user-attachments/assets/a7575b29-d988-48b0-bec7-2bd6e7004696
 
 ## Structure du Projet
 
